@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Backend for DevCollab - Developer Collaboration Platform",
   "main": "server.js",
-  "type" : "module",
+  "type": "module",
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js"
@@ -22,7 +22,7 @@
     "cors": "^2.8.5",
     "dotenv": "^17.0.0",
     "express": "^4.19.2",
-    "jsonwebtoken": "^9.0.2",
+    "jsonwebtoken": "^9.0.3",
     "mongoose": "^8.5.0"
   },
   "devDependencies": {
