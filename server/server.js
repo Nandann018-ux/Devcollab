@@ -3,6 +3,16 @@ import dotenv from "dotenv";
 import mongoose from "mongoose";
 import authRoutes from "./routes/authRoutes.js";
 
+import { protect } from "./middleware/authMiddleware.js";
+
+app.get("/api/protected", protect, (req, res) => {
+  res.json({
+    message: "Protected route accessed",
+    user: req.user,
+  });
+});
+
+
 dotenv.config();
 
 const app = express();
