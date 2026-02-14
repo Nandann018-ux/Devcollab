@@ -19,8 +19,9 @@ export const register = async (req, res) => {
       email,
       password: hashedPassword,
     });
+    const { password: _, ...safeUser } = user._doc;
+    res.status(201).json(safeUser);
 
-    res.status(201).json(user);
   } catch (err) {
     res.status(500).json(err.message);
   }
@@ -45,7 +46,9 @@ export const login = async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    res.json({ user, token });
+    const { password: _, ...safeUser } = user._doc;
+    res.json({user: safeUser,token});
+
   } catch (err) {
     res.status(500).json(err.message);
   }
