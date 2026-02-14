@@ -2,10 +2,7 @@ import mongoose from "mongoose";
 
 const projectSchema = new mongoose.Schema(
   {
-    name: {
-      type: String,
-      required: true,
-    },
+    name: String,
     description: String,
 
     owner: {
@@ -23,6 +20,4 @@ const projectSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const Project = mongoose.model("Project", projectSchema);
-
-export default Project;
+export default mongoose.model("Project", projectSchema);
