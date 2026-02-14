@@ -2,8 +2,14 @@ import express from "express";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 import authRoutes from "./routes/authRoutes.js";
-
 import { protect } from "./middleware/authMiddleware.js";
+
+dotenv.config();
+
+const app = express();   
+app.use(express.json());
+
+app.use("/api/auth", authRoutes);
 
 app.get("/api/protected", protect, (req, res) => {
   res.json({
@@ -13,25 +19,13 @@ app.get("/api/protected", protect, (req, res) => {
 });
 
 
-dotenv.config();
-
-const app = express();
-app.use(express.json());
-
-app.get("/", (req, res) => {
-  res.send("API Running 🚀");
-});
-
-app.use("/api/auth", authRoutes);
-
-
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB Connected"))
   .catch((err) => console.log(err));
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
-app.listen(PORT, () => {
-  console.log(`SERVER STARTED ON ${PORT}`);
-});
+app.listen(PORT, () =>
+  console.log(`SERVER STARTED ON ${PORT}`)
+);

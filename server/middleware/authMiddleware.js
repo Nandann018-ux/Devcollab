@@ -4,6 +4,7 @@ import User from "../models/User.js";
 export const protect = async (req, res, next) => {
   try {
     let token;
+
     if (
       req.headers.authorization &&
       req.headers.authorization.startsWith("Bearer")
@@ -28,6 +29,7 @@ export const protect = async (req, res, next) => {
 
     next();
   } catch (error) {
+    console.log(error);   
     res.status(401).json({
       message: "Token failed",
     });
