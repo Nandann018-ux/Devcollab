@@ -56,7 +56,7 @@ Devcollab/
 
 ```bash
 git clone https://github.com/Nandann018-ux/Devcollab.git
-cd devcollab
+cd Devcollab
 ```
 
 ---
