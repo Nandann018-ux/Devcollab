@@ -2,54 +2,63 @@ import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
-
 export const register = async (req, res) => {
-  try {
-    const { name, email, password } = req.body;
+  const { name, email, password, role } = req.body;
 
-    const exists = await User.findOne({ email });
-    if (exists)
-      return res.status(400).json({ message: "User already exists" });
+  if (!name || !email || !password)
+    return res.status(400).json({ message: "Please provide all fields" });
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+  const userExists = await User.findOne({ email });
+  if (userExists)
+    return res.status(400).json({ message: "User already exists" });
 
-    const user = await User.create({
-      name,
-      email,
-      password: hashedPassword,
-    });
-    const { password: _, ...safeUser } = user._doc;
-    res.status(201).json(safeUser);
+  const hashedPassword = await bcrypt.hash(password, 10);
 
-  } catch (err) {
-    res.status(500).json(err.message);
-  }
+  const user = await User.create({
+    name,
+    email,
+    password: hashedPassword,
+    role: role || "developer", 
+  });
+
+  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+    expiresIn: "30d",
+  });
+
+  res.status(201).json({
+    user: {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    },
+    token,
+  });
 };
 
-
 export const login = async (req, res) => {
-  try {
-    const { email, password } = req.body;
+  const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
-    if (!user)
-      return res.status(400).json({ message: "User not found" });
+  if (!email || !password)
+    return res.status(400).json({ message: "Please provide email and password" });
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch)
-      return res.status(400).json({ message: "Invalid credentials" });
+  const user = await User.findOne({ email });
+  if (!user) return res.status(401).json({ message: "Invalid credentials" });
 
-    const token = jwt.sign(
-        { id: user._id },
-        process.env.JWT_SECRET,
-        { expiresIn: "7d" }
-      );      
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) return res.status(401).json({ message: "Invalid credentials" });
 
-    const { password: _, ...safeUser } = user._doc;
-    res.json({user: safeUser,token});
+  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+    expiresIn: "30d",
+  });
 
-  } catch (err) {
-    res.status(500).json(err.message);
-  }
+  res.json({
+    user: {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    },
+    token,
+  });
 };

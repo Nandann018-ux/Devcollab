@@ -1,14 +1,15 @@
+import Project from "../models/Project.js";
 
 export const createProject = async (req, res) => {
   try {
-    const { title, description } = req.body;
+    const { name, description } = req.body;
 
-    const project = {
-      id: Date.now(),
-      title,
+    const project = await Project.create({
+      name,
       description,
-      admin: "Admin User",
-    };
+      owner: req.user._id,
+      members: [req.user._id],
+    });
 
     res.status(201).json(project);
   } catch (error) {
@@ -16,26 +17,18 @@ export const createProject = async (req, res) => {
   }
 };
 
-export const getProjects = async (req, res) => {
+export const getMyProjects = async (req, res) => {
   try {
-    res.json([
-      { id: 1, title: "DevCollab", description: "Collaboration platform" },
-    ]);
+    const projects = await Project.find({
+      members: req.user._id,
+    }).populate("members", "name email");
+
+    res.json(projects);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
 export const getAdmin = async (req, res) => {
-  try {
-    const admin = {
-      projectId: req.params.id,
-      adminName: "Nandan",
-      role: "Project Admin",
-    };
-
-    res.json(admin);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+  res.json({ message: "Welcome Admin 🚀", user: req.user });
 };
