@@ -1,55 +1,63 @@
 import { useState } from "react";
-import axios from "axios";
 
-function Register() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+export default function Register() {
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+  });
 
-  const submitHandler = async (e) => {
+  const handleChange = (e) => {
+    setForm({
+      ...form,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleSubmit = (e) => {
     e.preventDefault();
 
-    await axios.post(
-      "http://localhost:5001/api/users/register",
-      { name, email, password }
-    );
+    console.log("Register Data:", form);
 
-    window.location.href = "/";
+    alert("Registered — backend integrate later");
   };
 
   return (
-    <div className="h-screen flex items-center justify-center bg-gray-900">
+    <div className="h-screen flex items-center justify-center bg-gray-100">
       <form
-        onSubmit={submitHandler}
-        className="bg-gray-800 p-8 rounded-xl w-96 space-y-4"
+        onSubmit={handleSubmit}
+        className="bg-white p-6 rounded-xl shadow-md w-80"
       >
-        <h2 className="text-white text-2xl font-bold">Register</h2>
+        <h2 className="text-2xl font-bold mb-4">Register</h2>
 
         <input
+          type="text"
+          name="name"
           placeholder="Name"
-          className="w-full p-2 rounded bg-gray-700 text-white"
-          onChange={(e) => setName(e.target.value)}
+          className="w-full mb-3 p-2 border rounded"
+          onChange={handleChange}
         />
 
         <input
+          type="email"
+          name="email"
           placeholder="Email"
-          className="w-full p-2 rounded bg-gray-700 text-white"
-          onChange={(e) => setEmail(e.target.value)}
+          className="w-full mb-3 p-2 border rounded"
+          onChange={handleChange}
         />
 
         <input
           type="password"
+          name="password"
           placeholder="Password"
-          className="w-full p-2 rounded bg-gray-700 text-white"
-          onChange={(e) => setPassword(e.target.value)}
+          className="w-full mb-3 p-2 border rounded"
+          onChange={handleChange}
         />
 
-        <button className="bg-green-600 w-full p-2 rounded text-white">
+        <button className="w-full bg-green-500 text-white p-2 rounded">
           Register
         </button>
       </form>
     </div>
   );
 }
-
-export default Register;

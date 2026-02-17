@@ -1,56 +1,46 @@
 import { useState } from "react";
-import API from "../api/axios";
+import { loginUser } from "../services/authService";
+import { useNavigate } from "react-router-dom";
 
-export default function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+const navigate = useNavigate();
+navigate("/dashboard");
 
-  const handleLogin = async (e) => {
+function Login() {
+  const [form, setForm] = useState({
+    email: "",
+    password: "",
+  });
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     try {
-      const { data } = await API.post("/users/login", {
-        email,
-        password,
-      });
-
-      localStorage.setItem("userInfo", JSON.stringify(data));
-
-      alert("Login Success");
-      window.location.href = "/dashboard";
-    } catch (error) {
-      alert(error.response?.data?.message || "Login Failed");
+      const res = await loginUser(form);
+      alert("Login Successful");
+      navigate("/dashboard");
+      console.log(res);
+    } catch (err) {
+      alert(err.message);
     }
   };
 
   return (
-    <div className="flex items-center justify-center h-screen">
-      <form
-        onSubmit={handleLogin}
-        className="bg-white p-6 rounded shadow w-80"
-      >
-        <h2 className="text-xl mb-4 font-bold">Login</h2>
+    <form onSubmit={handleSubmit}>
+      <input
+        type="email"
+        placeholder="Email"
+        onChange={(e) => setForm({ ...form, email: e.target.value })}
+      />
 
-        <input
-          type="email"
-          placeholder="Email"
-          className="border p-2 w-full mb-3"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+      <input
+        type="password"
+        placeholder="Password"
+        onChange={(e) => setForm({ ...form, password: e.target.value })}
+      />
 
-        <input
-          type="password"
-          placeholder="Password"
-          className="border p-2 w-full mb-3"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-
-        <button className="bg-black text-white px-4 py-2 w-full">
-          Login
-        </button>
-      </form>
-    </div>
+      <button type="submit">Login</button>
+    </form>
   );
 }
+
+export default Login;
