@@ -1,25 +1,22 @@
 const projects = [
-    {
-      id: 1,
-      title: "AI Resume Builder",
-      description: "Build an AI powered resume analyzer using MERN",
-      tech: "MERN",
-      owner: "Nandan",
-    },
-    {
-      id: 2,
-      title: "Open Source LMS",
-      description: "Create a learning platform using Next.js and Node",
-      tech: "Next.js",
-      owner: "Alex",
-    },
-    {
-      id: 3,
-      title: "Startup Landing Page",
-      description: "Design and build a modern SaaS landing page",
-      tech: "React + Tailwind",
-      owner: "Sarah",
-    },
-  ];
-  
-  export default projects;
+  {
+    id: 1,
+    title: "AI Resume Builder",
+    description: "An AI-powered resume builder for developers.",
+    techStack: "React, Node.js, OpenAI",
+  },
+  {
+    id: 2,
+    title: "Open Source Hub",
+    description: "Platform to find beginner-friendly open source projects.",
+    techStack: "React, Firebase",
+  },
+  {
+    id: 3,
+    title: "DevCollab",
+    description: "Collaborate on side projects with other developers.",
+    techStack: "MERN Stack",
+  },
+];
+
+export default projects;

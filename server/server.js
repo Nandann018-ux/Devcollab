@@ -1,28 +1,28 @@
-import express from "express";
-import dotenv from "dotenv";
 import cors from "cors";
-import mongoose from "mongoose";
-import userRoutes from "./routes/userRoutes.js";
-import projectRoutes from "./routes/projectRoutes.js";
-import taskRoutes from "./routes/taskRoutes.js";
-
+import dotenv from "dotenv";
 dotenv.config();
 
-const app = express();   
+import express from "express";
+import mongoose from "mongoose";
+import userRoutes from "./routes/userRoutes.js";
+
+const app = express();
 app.use(cors());
 app.use(express.json());
 
+// console.log("MONGO URI connected");
+
 app.use("/api/users", userRoutes);
-app.use("/api/projects", projectRoutes);
-app.use("/api/tasks", taskRoutes);
+
+app.get("/", (req, res) => {
+  res.send("API Running");
+});
 
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB Connected"))
-  .catch((err) => console.log(err));
+  .catch((err) => console.log("Mongo Error:", err));
 
-const PORT = process.env.PORT || 5001;
-
-app.listen(PORT, () =>
-  console.log(`SERVER STARTED ON ${PORT}`)
+app.listen(5001, () =>
+  console.log("Server running on port 5001")
 );

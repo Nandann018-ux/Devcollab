@@ -1,17 +1,18 @@
 function ProjectCard({ project }) {
-    return (
-      <div style={{
+  return (
+    <div
+      style={{
         border: "1px solid #ddd",
-        padding: "16px",
-        borderRadius: "10px",
-        marginBottom: "16px"
-      }}>
-        <h3>{project.title}</h3>
-        <p>{project.description}</p>
-        <p><strong>Tech:</strong> {project.tech}</p>
-        <p><strong>Owner:</strong> {project.owner}</p>
-      </div>
-    );
-  }
-  
-  export default ProjectCard;
+        padding: "20px",
+        marginTop: "20px",
+        borderRadius: "8px",
+      }}
+    >
+      <h3>{project.title}</h3>
+      <p>{project.description}</p>
+      <p><strong>Tech Stack:</strong> {project.techStack}</p>
+    </div>
+  );
+}
+
+export default ProjectCard;

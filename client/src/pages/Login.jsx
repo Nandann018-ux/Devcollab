@@ -1,19 +1,37 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-const { login } = useAuth();
+function Login() {
+  const [name, setName] = useState("");
+  const navigate = useNavigate();
+  const { login } = useAuth();
 
-const handleSubmit = (e) => {
-  e.preventDefault();
+  const handleLogin = (e) => {
+    e.preventDefault();
 
-  if (!form.email || !form.password) {
-    alert("All fields required");
-    return;
-  }
+    if (!name.trim()) return;
 
-  login({
-    name: "Nandan",
-    email: form.email,
-  });
+    login({ name });
+    navigate("/dashboard");
+  };
 
-  navigate("/dashboard");
-};
+  return (
+    <div style={{ padding: "40px" }}>
+      <h1>Login</h1>
+
+      <form onSubmit={handleLogin}>
+        <input
+          type="text"
+          placeholder="Enter your name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          style={{ padding: "8px", marginRight: "10px" }}
+        />
+        <button type="submit">Login</button>
+      </form>
+    </div>
+  );
+}
+
+export default Login;

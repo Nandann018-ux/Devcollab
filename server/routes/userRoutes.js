@@ -1,9 +1,12 @@
 import express from "express";
-import { createProject } from "../controllers/projectController.js";
-import protect from "../middleware/authMiddleware.js";
+import {
+  registerUser,
+  loginUser,
+} from "../controllers/userController.js";
 
 const router = express.Router();
 
-router.post("/create-project", protect, createProject);
+router.post("/register", registerUser);
+router.post("/login", loginUser);
 
 export default router;
