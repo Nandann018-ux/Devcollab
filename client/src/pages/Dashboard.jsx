@@ -1,25 +1,11 @@
-import projects from "../data/projects";
-import ProjectCard from "../components/ProjectCard";
-import Navbar from "../components/Navbar";
-import { useAuth } from "../context/AuthContext";
-
 function Dashboard() {
-  const { user } = useAuth();
+  const user = JSON.parse(localStorage.getItem("user"));
 
   return (
-    <>
-      <Navbar />
-
-      <div style={{ padding: "40px" }}>
-        <h1>Welcome, {user?.name} 🚀</h1>
-
-        <h2 style={{ marginTop: "30px" }}>Explore Projects</h2>
-
-        {projects.map((project) => (
-          <ProjectCard key={project.id} project={project} />
-        ))}
-      </div>
-    </>
+    <div style={{ padding: "40px" }}>
+      <h1>Welcome 🚀</h1>
+      <p>Logged in as: {user?.email}</p>
+    </div>
   );
 }
 
