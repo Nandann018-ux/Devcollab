@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Filter, Mail, Link as LinkIcon, UserPlus, ShieldCheck } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { getTeams } from "../services/teamService";
+import GlobalFooter from "../components/GlobalFooter";
 
 // Dummy Data Architecture
 const initialDevelopers = [
@@ -67,8 +70,40 @@ const initialDevelopers = [
 ];
 
 export default function Teams() {
-    const [developers] = useState(initialDevelopers);
+    const { user } = useAuth();
+    const [developers, setDevelopers] = useState(initialDevelopers);
     const [searchFocused, setSearchFocused] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
+
+    // Fetch real teams from the API if the user is logged in.
+    // Falls back to displaying the dummy developer cards if not authenticated.
+    useEffect(() => {
+        if (user && user.token) {
+            getTeams()
+                .then((teams) => {
+                    // Map team members into the same shape as our dummy data so the UI renders uniformly
+                    if (teams.length > 0) {
+                        const mapped = teams.flatMap(t => t.members || []).map(m => ({
+                            id: m._id,
+                            name: m.name,
+                            role: m.role || "Developer",
+                            avatar: m.avatar || m.name,
+                            status: "online",
+                            verified: true,
+                            skills: [],
+                            bio: "",
+                        }));
+                        if (mapped.length > 0) setDevelopers(mapped);
+                    }
+                })
+                .catch(() => {}); // Silently keep dummy data on error
+        }
+    }, [user]);
+
+    // Filter developers by search query client-side (no extra API call needed for this)
+    const filteredDevelopers = developers.filter(d =>
+        !searchQuery || d.name.toLowerCase().includes(searchQuery.toLowerCase()) || d.role.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     // Animation variants
     const containerVariants = {
@@ -85,7 +120,7 @@ export default function Teams() {
     };
 
     return (
-        <div className="min-h-screen bg-[#05050A] text-gray-300 font-sans p-8 flex flex-col relative overflow-hidden">
+        <div className="h-full font-sans p-8 flex flex-col relative overflow-hidden">
 
             {/* Background Ambient Nebula */}
             <motion.div
@@ -140,6 +175,8 @@ export default function Teams() {
                                     placeholder="Search by role, name, or skill..."
                                     onFocus={() => setSearchFocused(true)}
                                     onBlur={() => setSearchFocused(false)}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    value={searchQuery}
                                     className="w-full pl-11 pr-4 py-2.5 bg-transparent text-sm text-white focus:outline-none placeholder-gray-600"
                                 />
                             </div>
@@ -159,7 +196,7 @@ export default function Teams() {
                     animate="visible"
                     className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-12"
                 >
-                    {developers.map((dev) => (
+                    {filteredDevelopers.map((dev) => (
                         <motion.div
                             key={dev.id}
                             variants={itemVariants}
@@ -219,11 +256,7 @@ export default function Teams() {
                 </motion.div>
             </div>
 
-            <style jsx>{`
-        @keyframes shimmer {
-          100% { transform: translateX(100%); }
-        }
-      `}</style>
+            <GlobalFooter />
         </div>
     );
 }

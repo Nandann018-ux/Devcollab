@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Search, Hash, Plus, SendHorizontal, Paperclip, Smile, Phone, Video, Info } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { getInbox, sendMessage as sendMessageAPI } from "../services/messageService";
+import GlobalFooter from "../components/GlobalFooter";
 
 // Dummy Data Architecture
 const initialChannels = [
@@ -23,6 +26,10 @@ const chatHistory = [
 ];
 
 export default function Messages() {
+    const { user } = useAuth();
+    const displayName = user?.name || "Nandan";
+    const avatarSeed = user?.avatar || "Nandan";
+
     const [channels] = useState(initialChannels);
     const [dms] = useState(initialDMs);
     const [messages, setMessages] = useState(chatHistory);
@@ -37,6 +44,29 @@ export default function Messages() {
         scrollToBottom();
     }, [messages]);
 
+    // Fetch real inbox messages when logged in.
+    // Transform the API shape into the same flat structure our chat UI expects.
+    useEffect(() => {
+        if (user && user.token) {
+            getInbox()
+                .then((inbox) => {
+                    if (inbox.length > 0) {
+                        const mapped = inbox.map((m, i) => ({
+                            id: m._id,
+                            senderId: m.sender._id,
+                            senderName: m.sender.name,
+                            avatar: m.sender.avatar || m.sender.name,
+                            text: m.content,
+                            time: new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                            isMe: false,
+                        }));
+                        setMessages(mapped);
+                    }
+                })
+                .catch(() => {}); // Keep dummy data on network error
+        }
+    }, [user]);
+
     const handleSend = (e) => {
         e.preventDefault();
         if (!inputValue.trim()) return;
@@ -44,19 +74,25 @@ export default function Messages() {
         const newMsg = {
             id: `m-${Date.now()}`,
             senderId: "me",
-            senderName: "You",
-            avatar: "Self",
+            senderName: displayName,
+            avatar: avatarSeed,
             text: inputValue,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            isMe: true
+            time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            isMe: true,
         };
 
         setMessages([...messages, newMsg]);
         setInputValue("");
+
+        // Fire and forget — optimistic UI update, API call in background
+        if (user && user.token && dms[0]) {
+            sendMessageAPI(dms[0].id, inputValue).catch(() => {});
+        }
     };
 
     return (
-        <div className="h-screen bg-[#05050A] text-gray-300 font-sans flex overflow-hidden">
+        <div className="h-full flex flex-col overflow-hidden flex-1">
+          <div className="flex flex-1 overflow-hidden">
 
             {/* LEFT PANE - Channels list */}
             <motion.div
@@ -223,7 +259,9 @@ export default function Messages() {
                     </form>
                 </div>
             </motion.div>
-
+          </div>
+          {/* GlobalFooter sits inside the outer root div, below the flex chat row */}
+          <GlobalFooter />
         </div>
     );
 }

@@ -1,22 +1,48 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Rocket, Users, User, Mail, Code, Lock, EyeOff } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { register as registerService } from "../services/authService";
 
 export default function Register() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({ name: "", email: "", github: "", password: "" });
   const [activeRole, setActiveRole] = useState("Full-Stack");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const roles = ["Full-Stack", "Frontend", "Backend", "UI/UX"];
 
-  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setError("");
+  };
 
-  const handleSubmit = (e) => {
+  // handleSubmit — calls the real API and falls back to demo mode if API is offline
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.email || !formData.password) return;
-    localStorage.setItem("user", JSON.stringify({ email: formData.email, name: formData.name, role: activeRole }));
-    navigate("/dashboard");
+    if (!formData.name || !formData.email || !formData.password) {
+      return setError("Please fill in all required fields.");
+    }
+    setLoading(true);
+    try {
+      const roleMap = { "Full-Stack": "developer", Frontend: "developer", Backend: "developer", "UI/UX": "designer" };
+      const userData = await registerService(formData.name, formData.email, formData.password, roleMap[activeRole]);
+      login(userData);
+      navigate("/dashboard");
+    } catch (err) {
+      if (!err.response) {
+        // API offline — allow demo shortcut
+        login({ name: formData.name, email: formData.email, token: "demo-token", avatar: formData.name, role: "developer" });
+        navigate("/dashboard");
+      } else {
+        setError(err.response?.data?.message || "Registration failed. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const containerVariants = {
@@ -105,6 +131,20 @@ export default function Register() {
               <p className="text-[13px] text-gray-400">Join the premium developer community today.</p>
             </div>
 
+            {/* Error Banner */}
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mb-4 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm"
+                >
+                  {error}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <motion.form
               onSubmit={handleSubmit}
               className="space-y-4"
@@ -122,7 +162,7 @@ export default function Register() {
                   <input
                     type="text"
                     name="name"
-                    placeholder="Alex Developer"
+                    placeholder="Nandan Acharya"
                     value={formData.name}
                     onChange={handleChange}
                     className="w-full pl-11 pr-4 py-3 bg-[#191425] border border-white/5 rounded-xl text-[14px] text-white focus:outline-none focus:border-[#602ee6] transition-colors placeholder-gray-500 shadow-inner"
@@ -213,9 +253,12 @@ export default function Register() {
               <motion.div variants={itemVariants} className="pt-4">
                 <button
                   type="submit"
-                  className="w-full py-3.5 rounded-xl bg-[#602ee6] hover:bg-[#5025d1] text-white text-[14px] font-semibold transition-colors flex items-center justify-center shadow-[0_4px_14px_0_rgba(96,46,230,0.39)] hover:shadow-[0_6px_20px_rgba(96,46,230,0.23)] hover:-translate-y-[1px] transform duration-200"
+                  disabled={loading}
+                  className="w-full py-3.5 rounded-xl bg-[#602ee6] hover:bg-[#5025d1] disabled:opacity-70 text-white text-[14px] font-semibold transition-colors flex items-center justify-center gap-2 shadow-[0_4px_14px_0_rgba(96,46,230,0.39)] hover:-translate-y-[1px] transform duration-200"
                 >
-                  Initialize Workspace
+                  {loading ? (
+                    <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full" />
+                  ) : "Initialize Workspace"}
                 </button>
               </motion.div>
             </motion.form>

@@ -1,15 +1,21 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion, useMotionValue, useTransform, useSpring, AnimatePresence } from "framer-motion";
+import { useAuth } from "../context/AuthContext";
+import { login as loginService } from "../services/authService";
 
 export default function Login() {
   const navigate = useNavigate();
+  const { login } = useAuth();
+
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [focusedInput, setFocusedInput] = useState(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
-
   const magneticX = useSpring(0, { stiffness: 150, damping: 15, mass: 0.1 });
   const magneticY = useSpring(0, { stiffness: 150, damping: 15, mass: 0.1 });
   const buttonRef = useRef(null);
@@ -19,14 +25,12 @@ export default function Login() {
       const { innerWidth, innerHeight } = window;
       mouseX.set((e.clientX / innerWidth - 0.5) * 2);
       mouseY.set((e.clientY / innerHeight - 0.5) * 2);
-
       if (buttonRef.current) {
         const rect = buttonRef.current.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
         const distanceX = e.clientX - centerX;
         const distanceY = e.clientY - centerY;
-
         if (Math.abs(distanceX) < rect.width / 2 + 30 && Math.abs(distanceY) < rect.height / 2 + 30) {
           magneticX.set(distanceX * 0.3);
           magneticY.set(distanceY * 0.3);
@@ -40,41 +44,57 @@ export default function Login() {
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, [mouseX, mouseY, magneticX, magneticY]);
 
-  // Parallax Shifts
   const nebulaX = useTransform(mouseX, [-1, 1], [-40, 40]);
   const nebulaY = useTransform(mouseY, [-1, 1], [-40, 40]);
-
   const cardX = useTransform(mouseX, [-1, 1], [30, -30]);
   const cardY = useTransform(mouseY, [-1, 1], [30, -30]);
 
-  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setError(""); // Clear error on input change
+  };
 
-  const handleSubmit = (e) => {
+  // handleSubmit — tries the real API first, falls back to a demo shortcut
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.email || !formData.password) return;
-    localStorage.setItem("user", JSON.stringify({ email: formData.email }));
-    navigate("/dashboard");
+    if (!formData.email || !formData.password) {
+      return setError("Please fill in all fields.");
+    }
+    setLoading(true);
+    try {
+      const userData = await loginService(formData.email, formData.password);
+      login(userData); // Store in AuthContext + localStorage
+      navigate("/dashboard");
+    } catch (err) {
+      // If the API is offline, allow a demo bypass so the UI can still be shown
+      if (!err.response) {
+        // Network error — allow demo mode (API is offline)
+        login({ name: "Nandan", email: formData.email, token: "demo-token", avatar: "Nandan", role: "developer" });
+        navigate("/dashboard");
+      } else {
+        setError(err.response?.data?.message || "Login failed. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const staggerWords = ["Code.", "Collaborate.", "Create."];
 
   return (
     <div className="min-h-screen bg-[#05050A] text-gray-300 font-sans flex flex-col relative overflow-hidden">
-      {/* Background Ambient Nebula inside the main flow later so it stays behind left text */}
-
       <header className="w-full px-8 py-6 flex justify-between items-center z-20 relative">
-        <div className="flex items-center gap-3">
+        <Link to="/" className="flex items-center gap-3">
           <div className="bg-[#602ee6] rounded-full p-1.5 flex items-center justify-center">
             <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
             </svg>
           </div>
           <span className="text-white font-bold text-lg tracking-wide">DevCollab</span>
-        </div>
+        </Link>
 
         <nav className="hidden md:flex gap-8 text-sm text-gray-400 font-medium">
-          <a href="#" className="hover:text-white transition">Product</a>
-          <a href="#" className="hover:text-white transition">Enterprise</a>
+          <Link to="/" className="hover:text-white transition">Home</Link>
           <a href="#" className="hover:text-white transition">Docs</a>
         </nav>
 
@@ -87,23 +107,14 @@ export default function Login() {
       </header>
 
       <main className="flex-1 flex flex-col md:flex-row items-center justify-center px-8 z-10 w-full max-w-7xl mx-auto gap-12 lg:gap-24">
-
-        {/* Left Side Construction */}
+        {/* Left Side */}
         <div className="flex-1 flex flex-col justify-center relative w-full items-start pl-8">
-
-          {/* Parallax Nebula attached to Left Side */}
           <motion.div
             style={{ x: nebulaX, y: nebulaY }}
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] pointer-events-none -z-10"
           >
             <motion.div
-              animate={{
-                scale: [1, 1.15, 0.9, 1],
-                rotate: [0, 10, -5, 0],
-                opacity: [0.3, 0.5, 0.4, 0.3],
-                x: [0, 40, -20, 0],
-                y: [0, -30, 20, 0]
-              }}
+              animate={{ scale: [1, 1.15, 0.9, 1], rotate: [0, 10, -5, 0], opacity: [0.3, 0.5, 0.4, 0.3] }}
               transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
               className="w-full h-full bg-purple-900/30 rounded-full blur-[140px]"
             />
@@ -115,8 +126,8 @@ export default function Login() {
                 key={word}
                 initial={{ opacity: 0, y: 40, scale: 0.9 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ type: "spring", stiffness: 120, damping: 14, mass: 0.5, delay: i * 0.15 }}
-                className="block drop-shadow-lg"
+                transition={{ type: "spring", stiffness: 120, damping: 14, delay: i * 0.15 }}
+                className="block"
               >
                 {word}
               </motion.div>
@@ -125,7 +136,7 @@ export default function Login() {
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ type: "spring", delay: 0.6, stiffness: 100 }}
+            transition={{ type: "spring", delay: 0.6 }}
             className="text-xl text-gray-400 max-w-md"
           >
             The ultimate workspace for next-gen developers.
@@ -133,13 +144,13 @@ export default function Login() {
         </div>
 
         {/* Right Side Card */}
-        <div className="flex-1 w-full flex justify-center perspective-[1000px]">
+        <div className="flex-1 w-full flex justify-center">
           <motion.div
             style={{ x: cardX, y: cardY }}
-            initial={{ y: 50, scale: 0.9, opacity: 0, backdropFilter: "blur(0px)" }}
-            animate={{ y: 0, scale: 1, opacity: 1, backdropFilter: "blur(16px)" }}
-            transition={{ type: "spring", stiffness: 90, damping: 15, mass: 0.4, delay: 0.2 }}
-            className="w-full max-w-[420px] bg-[#120d1d]/80 border border-white/10 rounded-3xl p-8 sm:p-10 shadow-2xl relative z-20"
+            initial={{ y: 50, scale: 0.9, opacity: 0 }}
+            animate={{ y: 0, scale: 1, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 90, damping: 15, delay: 0.2 }}
+            className="w-full max-w-[420px] bg-[#120d1d]/80 border border-white/10 rounded-3xl p-8 sm:p-10 shadow-2xl"
           >
             <div className="flex flex-col items-center mb-8 text-center">
               <div className="w-12 h-12 rounded-2xl bg-[#1c1433] flex items-center justify-center mb-5">
@@ -151,45 +162,41 @@ export default function Login() {
               <p className="text-sm text-gray-400">Enter your credentials to access your workspace.</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Error Banner */}
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mb-4 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm"
+                >
+                  {error}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-              {/* Email Input */}
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Email */}
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 tracking-widest uppercase mb-2">
-                  Email Address
-                </label>
+                <label className="block text-[11px] font-semibold text-gray-400 tracking-widest uppercase mb-2">Email Address</label>
                 <div className="relative group">
                   <AnimatePresence>
-                    {focusedInput === 'email' && (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="absolute -inset-[2px] rounded-xl overflow-hidden pointer-events-none"
-                      >
-                        <motion.div
-                          className="absolute top-1/2 left-1/2 w-[250%] h-[250%] -translate-x-1/2 -translate-y-1/2 bg-[conic-gradient(from_0deg,transparent_0%,transparent_60%,#06b6d4_80%,#8b5cf6_100%)]"
-                          initial={{ rotate: 0 }}
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 1.5, ease: "circOut" }}
-                        />
-                        <motion.div
-                          className="absolute inset-[2px] rounded-[10px] bg-[#191425]"
-                        />
+                    {focusedInput === "email" && (
+                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute -inset-[2px] rounded-xl overflow-hidden pointer-events-none">
+                        <motion.div className="absolute top-1/2 left-1/2 w-[250%] h-[250%] -translate-x-1/2 -translate-y-1/2 bg-[conic-gradient(from_0deg,transparent_0%,transparent_60%,#06b6d4_80%,#8b5cf6_100%)]" initial={{ rotate: 0 }} animate={{ rotate: 360 }} transition={{ duration: 1.5, ease: "circOut" }} />
+                        <motion.div className="absolute inset-[2px] rounded-[10px] bg-[#191425]" />
                       </motion.div>
                     )}
                   </AnimatePresence>
-
-                  <div className="relative flex items-center z-10 w-full h-full">
+                  <div className="relative flex items-center z-10">
                     <svg className="w-5 h-5 text-gray-500 absolute left-4 pointer-events-none z-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
                     <input
-                      type="email"
-                      name="email"
-                      placeholder="name@company.com"
+                      type="email" name="email" placeholder="name@company.com"
                       value={formData.email}
-                      onFocus={() => setFocusedInput('email')}
+                      onFocus={() => setFocusedInput("email")}
                       onBlur={() => setFocusedInput(null)}
                       onChange={handleChange}
                       className="w-full pl-12 pr-4 py-3.5 bg-[#191425] border border-white/5 rounded-xl text-sm text-white focus:outline-none focus:border-transparent transition-all placeholder-gray-600 relative z-10"
@@ -198,90 +205,68 @@ export default function Login() {
                 </div>
               </div>
 
-              {/* Password Input */}
+              {/* Password */}
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <label className="text-[11px] font-semibold text-gray-400 tracking-widest uppercase">
-                    Password
-                  </label>
-                  <a href="#" className="text-[11px] text-[#8b5cf6] hover:text-purple-400 transition">
-                    Forgot password?
-                  </a>
+                  <label className="text-[11px] font-semibold text-gray-400 tracking-widest uppercase">Password</label>
+                  <a href="#" className="text-[11px] text-[#8b5cf6] hover:text-purple-400 transition">Forgot password?</a>
                 </div>
-
                 <div className="relative group">
                   <AnimatePresence>
-                    {focusedInput === 'password' && (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="absolute -inset-[2px] rounded-xl overflow-hidden pointer-events-none"
-                      >
-                        <motion.div
-                          className="absolute top-1/2 left-1/2 w-[250%] h-[250%] -translate-x-1/2 -translate-y-1/2 bg-[conic-gradient(from_0deg,transparent_0%,transparent_60%,#06b6d4_80%,#8b5cf6_100%)]"
-                          initial={{ rotate: 0 }}
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 1.5, ease: "circOut" }}
-                        />
-                        <motion.div
-                          className="absolute inset-[2px] rounded-[10px] bg-[#191425]"
-                        />
+                    {focusedInput === "password" && (
+                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute -inset-[2px] rounded-xl overflow-hidden pointer-events-none">
+                        <motion.div className="absolute top-1/2 left-1/2 w-[250%] h-[250%] -translate-x-1/2 -translate-y-1/2 bg-[conic-gradient(from_0deg,transparent_0%,transparent_60%,#06b6d4_80%,#8b5cf6_100%)]" initial={{ rotate: 0 }} animate={{ rotate: 360 }} transition={{ duration: 1.5, ease: "circOut" }} />
+                        <motion.div className="absolute inset-[2px] rounded-[10px] bg-[#191425]" />
                       </motion.div>
                     )}
                   </AnimatePresence>
-
-                  <div className="relative flex items-center z-10 w-full h-full">
+                  <div className="relative flex items-center z-10">
                     <svg className="w-5 h-5 text-gray-500 absolute left-4 pointer-events-none z-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                     </svg>
                     <input
-                      type="password"
-                      name="password"
-                      placeholder="••••••••"
+                      type={showPassword ? "text" : "password"} name="password" placeholder="••••••••"
                       value={formData.password}
-                      onFocus={() => setFocusedInput('password')}
+                      onFocus={() => setFocusedInput("password")}
                       onBlur={() => setFocusedInput(null)}
                       onChange={handleChange}
                       className="w-full pl-12 pr-12 py-3.5 bg-[#191425] border border-white/5 rounded-xl text-sm text-white focus:outline-none focus:border-transparent transition-all placeholder-gray-600 tracking-widest relative z-10"
                     />
-                    <button type="button" className="absolute right-4 text-gray-500 hover:text-gray-300 z-20">
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 text-gray-500 hover:text-gray-300 z-20">
                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                        {showPassword
+                          ? <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          : <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                        }
                       </svg>
                     </button>
                   </div>
                 </div>
               </div>
 
-              {/* Magnetic Sign In Button */}
+              {/* Submit */}
               <motion.button
                 ref={buttonRef}
                 style={{ x: magneticX, y: magneticY }}
                 type="submit"
-                className="w-full py-3.5 mt-2 rounded-full relative overflow-hidden text-white text-sm font-semibold transition-all flex items-center justify-center gap-2 group"
+                disabled={loading}
+                className="w-full py-3.5 mt-2 rounded-full relative overflow-hidden text-white text-sm font-semibold flex items-center justify-center gap-2 group disabled:opacity-70"
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-[#06b6d4] to-[#8b5cf6] opacity-90 group-hover:opacity-100 transition-opacity"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-[#06b6d4] to-[#8b5cf6] opacity-90 group-hover:opacity-100 transition-opacity" />
                 <span className="relative z-10 flex items-center gap-2">
-                  Sign In
-                  <motion.svg
-                    className="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    whileHover={{ x: 5 }}
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                  </motion.svg>
+                  {loading ? (
+                    <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full" />
+                  ) : (
+                    <>Sign In <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg></>
+                  )}
                 </span>
               </motion.button>
             </form>
 
             <div className="flex items-center my-6">
-              <div className="flex-grow border-t border-white/5"></div>
+              <div className="flex-grow border-t border-white/5" />
               <span className="mx-4 text-[10px] font-bold tracking-widest text-gray-600 uppercase">Or continue with</span>
-              <div className="flex-grow border-t border-white/5"></div>
+              <div className="flex-grow border-t border-white/5" />
             </div>
 
             <div className="flex gap-4 mb-8">
@@ -304,20 +289,18 @@ export default function Login() {
 
             <p className="text-center text-gray-400 text-sm">
               Don't have an account?{" "}
-              <Link to="/register" className="text-white font-semibold hover:underline cursor-pointer">
-                Create account
-              </Link>
+              <Link to="/register" className="text-white font-semibold hover:underline">Create account</Link>
             </p>
           </motion.div>
         </div>
       </main>
 
       <footer className="w-full flex justify-center gap-6 text-[12px] text-gray-500 font-medium pb-8 z-10 relative">
+        <Link to="/" className="hover:text-gray-300 transition">← Back to Home</Link>
+        <span>•</span>
         <a href="#" className="hover:text-gray-300 transition">Privacy Policy</a>
         <span>•</span>
         <a href="#" className="hover:text-gray-300 transition">Terms of Service</a>
-        <span>•</span>
-        <a href="#" className="hover:text-gray-300 transition">Help Center</a>
       </footer>
     </div>
   );

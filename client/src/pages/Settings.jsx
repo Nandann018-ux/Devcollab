@@ -79,7 +79,7 @@ export default function Settings() {
     };
 
     return (
-        <div className="min-h-screen bg-[#05050A] text-gray-300 font-sans p-8 flex flex-col relative overflow-hidden">
+        <div className="h-full font-sans p-8 flex flex-col relative overflow-hidden">
 
             {/* Background Ambient Nebula */}
             <motion.div

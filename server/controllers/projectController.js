@@ -1,122 +1,128 @@
-import {Project} from "../models/Project.js";
-import User from "../models/User.js";
-import mongoose from "mongoose";
+import Project from "../models/Project.js";
 
+// POST /api/projects — Create a new project
 export const createProject = async (req, res) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, techStack, deadline } = req.body;
 
+    if (!name) {
+      return res.status(400).json({ message: "Project name is required" });
+    }
+
+    // The owner is set from req.user (injected by the protect middleware)
+    // so users can only own their own projects
     const project = await Project.create({
       name,
       description,
+      techStack: techStack || [],
+      deadline: deadline || null,
       owner: req.user._id,
-      members: [req.user._id],
+      members: [req.user._id], // Creator is automatically a member
     });
 
     res.status(201).json(project);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Create project error:", error.message);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
-export const getMyProjects = async (req, res) => {
+// GET /api/projects — Get all projects where user is owner or member
+export const getProjects = async (req, res) => {
   try {
+    // $or lets us return both projects owned by and shared with the user
     const projects = await Project.find({
-      members: req.user._id,
-    }).populate("members", "name email role");
-    res.json(projects);
+      $or: [{ owner: req.user._id }, { members: req.user._id }],
+    })
+      .populate("owner", "name avatar role") // Only select non-sensitive fields
+      .populate("members", "name avatar role")
+      .sort({ updatedAt: -1 }); // Most recently updated first
+
+    res.status(200).json(projects);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Get projects error:", error.message);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
-export const addMember = async (req, res) => {
+// GET /api/projects/:id — Get a single project by ID
+export const getProjectById = async (req, res) => {
   try {
-    const { projectId } = req.params;
-    const { memberId } = req.body;
+    const project = await Project.findById(req.params.id)
+      .populate("owner", "name avatar role")
+      .populate("members", "name avatar role");
 
-    if (!mongoose.Types.ObjectId.isValid(projectId))
-      return res.status(400).json({ message: "Invalid projectId" });
-    if (!mongoose.Types.ObjectId.isValid(memberId))
-      return res.status(400).json({ message: "Invalid memberId" });
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
 
-    const project = await Project.findById(projectId);
-    if (!project) return res.status(404).json({ message: "Project not found" });
+    // Authorization check — only owners or members can view the project
+    const isMember =
+      project.owner._id.equals(req.user._id) ||
+      project.members.some((m) => m._id.equals(req.user._id));
 
-    if (project.members.includes(memberId))
-      return res.status(400).json({ message: "User already a member" });
+    if (!isMember) {
+      return res.status(403).json({ message: "Access denied" });
+    }
 
-    project.members.push(memberId);
-    await project.save();
-
-    res.json(project);
+    res.status(200).json(project);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Get project by ID error:", error.message);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
-export const getProjectMembers = async (req, res) => {
-  try {
-    const { projectId } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(projectId))
-      return res.status(400).json({ message: "Invalid projectId" });
-
-    const project = await Project.findById(projectId).populate("members", "name email role");
-    if (!project) return res.status(404).json({ message: "Project not found" });
-
-    res.json(project.members);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-export const removeMember = async (req, res) => {
-  try {
-    const { projectId, memberId } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(projectId) || !mongoose.Types.ObjectId.isValid(memberId))
-      return res.status(400).json({ message: "Invalid ID" });
-
-    const project = await Project.findById(projectId);
-    if (!project) return res.status(404).json({ message: "Project not found" });
-
-    if (!project.members.includes(memberId))
-      return res.status(400).json({ message: "User is not a member" });
-
-    project.members = project.members.filter((id) => id.toString() !== memberId);
-    await project.save();
-
-    res.json({ message: "Member removed", project });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
+// PUT /api/projects/:id — Update a project (owner only)
 export const updateProject = async (req, res) => {
   try {
-    const { projectId } = req.params;
-    const { name, description } = req.body;
+    const project = await Project.findById(req.params.id);
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
 
-    if (!mongoose.Types.ObjectId.isValid(projectId))
-      return res.status(400).json({ message: "Invalid projectId" });
+    // Only the owner can update project details
+    if (!project.owner.equals(req.user._id)) {
+      return res
+        .status(403)
+        .json({ message: "Only the project owner can update it" });
+    }
 
-    const project = await Project.findById(projectId);
-    if (!project) return res.status(404).json({ message: "Project not found" });
-
-    if (project.owner.toString() !== req.user._id.toString())
-      return res.status(403).json({ message: "Only owner can update project" });
+    const { name, description, status, techStack, deadline, progress } =
+      req.body;
 
     if (name) project.name = name;
-    if (description) project.description = description;
+    if (description !== undefined) project.description = description;
+    if (status) project.status = status;
+    if (techStack) project.techStack = techStack;
+    if (deadline !== undefined) project.deadline = deadline;
+    if (progress !== undefined) project.progress = progress;
 
-    await project.save();
-    res.json(project);
+    const updated = await project.save();
+    res.status(200).json(updated);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Update project error:", error.message);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
-export const getAdmin = async (req, res) => {
-  res.json({ message: "Welcome Admin 🚀", user: req.user });
+// DELETE /api/projects/:id — Delete a project (owner only)
+export const deleteProject = async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    if (!project.owner.equals(req.user._id)) {
+      return res
+        .status(403)
+        .json({ message: "Only the project owner can delete it" });
+    }
+
+    await project.deleteOne();
+    res.status(200).json({ message: "Project deleted successfully" });
+  } catch (error) {
+    console.error("Delete project error:", error.message);
+    res.status(500).json({ message: "Server error" });
+  }
 };

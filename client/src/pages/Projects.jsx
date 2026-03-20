@@ -113,7 +113,7 @@ export default function Projects() {
     };
 
     return (
-        <div className="h-full bg-[#05050A] text-gray-300 font-sans p-8 flex flex-col relative overflow-hidden selection:bg-[#602ee6]/30">
+        <div className="h-full font-sans p-8 flex flex-col relative overflow-hidden">
 
             {/* Background Ambient Nebula */}
             <motion.div
